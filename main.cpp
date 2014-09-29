@@ -182,13 +182,14 @@ int main()
     gradient.push_back(sf::Color::Red);
     gradient = color_table(gradient);
 
+    // default starting parameters
    	double radius = 2;
 	int depth = 1000;
-
 	mpf_class center_r(0,100);
 	mpf_class center_i(0,100);
-    vector<std::complex<double>> x = deep_zoom_point(center_r, center_i, depth);
 
+	// calculate the iterations for the center point to high precision. 
+    vector<std::complex<double>> x = deep_zoom_point(center_r, center_i, depth);
     update(mandelbrot, size, x, radius, gradient);
 
     // window loop
