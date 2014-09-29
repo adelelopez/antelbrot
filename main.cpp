@@ -50,10 +50,7 @@ sf::Color palette(const vector<sf::Color>& gradient, double zn_size, int iter)
 {
 	// use smooth coloring 
 	double nu = iter - std::log2(std::log2(zn_size));
-
-	nu *= 10;
-
-	int i = (int) nu % gradient.size();
+	int i = (int) (nu * 10) % gradient.size();
 
 	return gradient[i];		
 }
@@ -62,8 +59,8 @@ sf::Color palette(const vector<sf::Color>& gradient, double zn_size, int iter)
 
 // high precision point used for perturbation theory method
 // produces a list of iteration values used to compute the surrounding points
-vector<std::complex<double>> deep_zoom_point(const mpf_class& center_r, const mpf_class& center_i,
-	int depth)
+vector<std::complex<double>> deep_zoom_point(const mpf_class& center_r, 
+	const mpf_class& center_i, int depth)
 {
 	vector<std::complex<double>> v;
 	mpf_class xn_r = center_r;
@@ -91,7 +88,7 @@ vector<std::complex<double>> deep_zoom_point(const mpf_class& center_r, const mp
 }
 
 
-// Color the pixel (i,j) (in screen coordinates)
+// Color the pixel (i,j) 
 sf::Color pt(const int& i, const int& j, const vector<std::complex<double>>& x, 
 	const sf::Vector2u& size, const double& radius, 
 	const vector<sf::Color>& gradient)
@@ -115,20 +112,23 @@ sf::Color pt(const int& i, const int& j, const vector<std::complex<double>>& x,
 		++iter;
 		zn_size = std::norm(x[iter] * 0.5 + dn);
 
+	// use bailout radius of 256 for smooth coloring. 
 	} while (zn_size < 256 && iter < max_iter);
 
+
 	// color according to iteration using logarithmic smoothing
-	sf::Color c0 = palette(gradient, zn_size, iter);
+	sf::Color color = palette(gradient, zn_size, iter);
 	if (iter == max_iter)
 		return sf::Color::Black;	// if it's in the set, color black
 	
-	return c0;
+	return color;
 }
 
 void update(sf::VertexArray* set, const sf::Vector2u& size, 
 	const vector<std::complex<double>>& x, const double& radius, 
 	const vector<sf::Color>& gradient)
 {
+	// add a point for each pixel, coloring based on iteration
 	for (int i = 0; i != size.x; ++i)
 	{
 		for (int j = 0; j != size.y; ++j)
@@ -191,7 +191,7 @@ int main()
 
     update(mandelbrot, size, x, radius, gradient);
 
-    // main loop
+    // window loop
     while (window.isOpen())
     {
     	window.clear();
@@ -201,102 +201,102 @@ int main()
         while (window.pollEvent(event))
         {      
             switch (event.type)
-			{
-			case sf::Event::Closed:
-			    window.close();
-			    break;
-			case sf::Event::Resized:
-			{
-				size = window.getSize();
-				// make sure the view gets resized as well
- 				window.setView(sf::View(sf::FloatRect(0,0,size.x,size.y)));
-
- 				// resize the vertex array
-				pixels = size.x * size.y;
-				mandelbrot->resize(pixels);
-
-			  	update(mandelbrot, size, x, radius, gradient);
-			}
-				break;
-			case sf::Event::KeyPressed:
-				switch(event.key.code)
+            {
+				case sf::Event::Closed:
+				    window.close();
+				    break;
+				case sf::Event::Resized:
 				{
-				    case sf::Keyboard::Escape:
-				        window.close();
-				        break;
+					size = window.getSize();
+					// make sure the view gets resized as well
+	 				window.setView(sf::View(sf::FloatRect(0,0,size.x,size.y)));
 
-				    case sf::Keyboard::R:
-				    {
-				    	cout << "Enter the new zoom radius: " << endl;
-				    	cin >> radius;
-				    	update(mandelbrot, size, x, radius, gradient);
-				    }
-				    	break;
+	 				// resize the vertex array
+					pixels = size.x * size.y;
+					mandelbrot->resize(pixels);
 
-				    case sf::Keyboard::D:
-				    {
-				      	cout << "Enter the new iteration depth: " << endl;    
-				    	cin >> depth;    	
-   					 	cout << "depth: " << depth << ". zoom: " << radius << endl;
+				  	update(mandelbrot, size, x, radius, gradient);
+				  	break;
+				}				
+				case sf::Event::MouseButtonPressed:
+				{
+					if (event.mouseButton.button == sf::Mouse::Left)
+					{	
+						sf::Vector2f mouse(event.mouseButton.x, event.mouseButton.y);
+						center_r+= radius * (2 * mouse.x - (int) size.x) / size.y;
+					 	center_i+= -radius * (2 * mouse.y - (int) size.y) / size.y;
+					 	radius/= 2;
+	   					cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
+	  					x = deep_zoom_point(center_r, center_i, depth);
 
-   					 	x = deep_zoom_point(center_r, center_i, depth);
-				    	update(mandelbrot, size, x, radius, gradient);
-				    }
-				    	break;
-
-				    case sf::Keyboard::I:
-				    {
-				      	cout << "Enter the real coordinate value: " << endl;
-				    	std::string r_str, i_str;
-				    	getline(cin, r_str ,'\n');
-				    	cout << "Enter the imaginary coordinate value: " << endl;
-				    	getline(cin, i_str, '\n');
-				    	cout << "Thank you for your cooperation." << endl;
-
-				    	// regex for detecting valid float numbers the user may enter. 
-				    	// a string of digits, optionally followed by a decimal point and another string of
-				    	// digits, optionally followed by an exponent
-				    	std::regex valid_float {"\\d+(.\\d*)?(e(\\+|-)?\\d+)?"};
-
-				    	// remove commas and other non-number characters (e for exponents is allowed)
-				    	r_str.erase(remove_if(r_str.begin(), r_str.end(), invalid_digit_char), r_str.end());
-				    	i_str.erase(remove_if(i_str.begin(), i_str.end(), invalid_digit_char), i_str.end());
-				  
-				    	
-				    	center_r = mpf_class(r_str.c_str(), 100);
-				    	center_i = mpf_class(i_str.c_str(), 100);
-
-				    	
-   					 	cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
-			
-						x = deep_zoom_point(center_r, center_i, depth);
-				    	update(mandelbrot, size, x, radius, gradient);
-				    }
-				    	break;
-
-				    case sf::Keyboard::Z:
-				    {
-				    	radius/= 2;
-			     		cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
-
-				    	update(mandelbrot, size, x, radius, gradient);
-				    }
-				    	break;
+						update(mandelbrot, size, x, radius, gradient);
+					}
+					break;
 				}
-			    break;
-			case sf::Event::MouseButtonPressed:
-				if (event.mouseButton.button == sf::Mouse::Left)
-				{	
-					sf::Vector2f mouse(event.mouseButton.x, event.mouseButton.y);
-					center_r+= radius * (2 * mouse.x - (int) size.x) / size.y;
-				 	center_i+= -radius * (2 * mouse.y - (int) size.y) / size.y;
-				 	radius/= 2;
-   					cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
-  					x = deep_zoom_point(center_r, center_i, depth);
+				case sf::Event::KeyPressed:
+				{
+					switch(event.key.code)
+					{
+					    case sf::Keyboard::Escape:
+					        window.close();
+					        break;
+					    case sf::Keyboard::R:
+					    {
+					    	cout << "Enter the new zoom radius: " << endl;
+					    	cin >> radius;
+					    	update(mandelbrot, size, x, radius, gradient);
+					    	break;
+					    }
+					    case sf::Keyboard::D:
+					    {
+					      	cout << "Enter the new iteration depth: " << endl;    
+					    	cin >> depth;    	
+	   					 	cout << "depth: " << depth << ". zoom: " << radius << endl;
 
-					update(mandelbrot, size, x, radius, gradient);
+	   					 	x = deep_zoom_point(center_r, center_i, depth);
+					    	update(mandelbrot, size, x, radius, gradient);
+					    	break;
+					    }
+					    case sf::Keyboard::I:
+					    {
+					      	cout << "Enter the real coordinate value: " << endl;
+					    	std::string r_str, i_str;
+					    	getline(cin, r_str ,'\n');
+					    	cout << "Enter the imaginary coordinate value: " << endl;
+					    	getline(cin, i_str, '\n');
+					    	cout << "Thank you for your cooperation." << endl;
+
+					    	// regex for detecting valid float numbers the user may enter. 
+					    	// a string of digits, optionally followed by a decimal point and another string of
+					    	// digits, optionally followed by an exponent
+					    	std::regex valid_float {"\\d+(.\\d*)?(e(\\+|-)?\\d+)?"};
+
+					    	// remove commas and other non-number characters (e for exponents is allowed)
+					    	r_str.erase(remove_if(r_str.begin(), r_str.end(), invalid_digit_char), r_str.end());
+					    	i_str.erase(remove_if(i_str.begin(), i_str.end(), invalid_digit_char), i_str.end());
+					  
+					    	
+					    	center_r = mpf_class(r_str.c_str(), 100);
+					    	center_i = mpf_class(i_str.c_str(), 100);
+
+					    	
+	   					 	cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
+				
+							x = deep_zoom_point(center_r, center_i, depth);
+					    	update(mandelbrot, size, x, radius, gradient);
+					    	break;
+					    }
+					    case sf::Keyboard::Z:
+					    {
+					    	radius/= 2;
+				     		cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
+
+					    	update(mandelbrot, size, x, radius, gradient);
+					    	break;
+					    }
+					}
+				    break;
 				}
-				break;
 			}
         }	  
 	}
