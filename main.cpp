@@ -296,10 +296,10 @@ int main()
                     update(mandelbrot, size, x, radius, gradient);
                     break;
                 }
-                }
+                } // end keyboard input switch
                 break;
             }
-            }
+            } // end event switch
         }
     }
     delete mandelbrot;
