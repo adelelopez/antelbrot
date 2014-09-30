@@ -140,30 +140,6 @@ void update(sf::VertexArray *set, const sf::Vector2u &size,
     }
 }
 
-bool invalid_digit_char(const char &c)
-{
-    switch (c)
-    {
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-    case '-':
-    case '.':
-    case 'e':
-    case 'E':
-        return false;
-    default:
-        return true;
-    }
-}
-
 int main()
 {
     // prepare window and the pixel array
@@ -228,7 +204,8 @@ int main()
                     center_r += radius * (2 * mouse.x - (int) size.x) / size.y;
                     center_i += -radius * (2 * mouse.y - (int) size.y) / size.y;
                     radius /= 2;
-                    cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
+                    cout << "center: " << center_r << " + i " << 
+                        center_i << ". zoom: " << radius << endl;
                     x = deep_zoom_point(center_r, center_i, depth);
 
                     update(mandelbrot, size, x, radius, gradient);
@@ -261,28 +238,37 @@ int main()
                 }
                 case sf::Keyboard::I:
                 {
-                    cout << "Enter the real coordinate value: " << endl;
+
+                    // regex for detecting valid float numbers 
+                    // a string of digits, optionally followed by a decimal 
+                    // point and another string of digits, 
+                    // optionally followed by an exponent
+                    std::regex valid_float {"-?\\d+(.\\d*)?(e(\\+|-)?\\d+)?"};
                     std::string r_str, i_str;
-                    getline(cin, r_str , '\n');
-                    cout << "Enter the imaginary coordinate value: " << endl;
-                    getline(cin, i_str, '\n');
-                    cout << "Thank you for your cooperation." << endl;
 
-                    // regex for detecting valid float numbers the user may enter.
-                    // a string of digits, optionally followed by a decimal point and another string of
-                    // digits, optionally followed by an exponent
-                    std::regex valid_float {"\\d+(.\\d*)?(e(\\+|-)?\\d+)?"};
+                    // validate strings entered
+                    while(!std::regex_match(r_str, valid_float) ||
+                          !std::regex_match(i_str, valid_float))
+                    {
 
-                    // remove commas and other non-number characters (e for exponents is allowed)
-                    r_str.erase(remove_if(r_str.begin(), r_str.end(), invalid_digit_char), r_str.end());
-                    i_str.erase(remove_if(i_str.begin(), i_str.end(), invalid_digit_char), i_str.end());
+                        cout << "Enter the real coordinate value: " << endl;
 
-
+                        getline(cin, r_str , '\n');
+                        cout << "Enter the imaginary coordinate value: " << endl;
+                        getline(cin, i_str, '\n');
+                        cout << "Thank you for your cooperation." << endl;
+                   
+                        // strip commas
+                        r_str.erase(remove_if(r_str.begin(), r_str.end(), 
+                            [] (char c) {return c == ',';}), r_str.end());
+                        i_str.erase(remove_if(i_str.begin(), i_str.end(), 
+                            [] (char c) {return c == ',';}), i_str.end());
+                    }
                     center_r = mpf_class(r_str.c_str(), 100);
                     center_i = mpf_class(i_str.c_str(), 100);
 
-
-                    cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
+                    cout << "center: " << center_r << " + i " << center_i 
+                         << ". zoom: " << radius << endl;
 
                     x = deep_zoom_point(center_r, center_i, depth);
                     update(mandelbrot, size, x, radius, gradient);
@@ -291,7 +277,8 @@ int main()
                 case sf::Keyboard::Z:
                 {
                     radius /= 2;
-                    cout << "center: " << center_r << " + i " << center_i << ". zoom: " << radius << endl;
+                    cout << "center: " << center_r << " + i " << center_i 
+                         << ". zoom: " << radius << endl;
 
                     update(mandelbrot, size, x, radius, gradient);
                     break;
